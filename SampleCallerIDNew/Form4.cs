@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using MySql.Data.MySqlClient;
 
 namespace SampleCallerIDNew
 {
@@ -25,9 +26,16 @@ namespace SampleCallerIDNew
       }*/
     public partial class Form4 : Form
     {
+        string MyConnection = "datasource=localhost;username=root;password=1234;database=phonebook";
+        MySqlCommand MyCommand;
+        string Query;
+        MySqlConnection MyConn;
+        MySqlDataReader MyReader;
+
         public Form4()
         {
             InitializeComponent();
+            MyConn = new MySqlConnection(MyConnection);
         }
 
         // public [MarshalAs(UnmanagedType.BStr)]String  myString;
@@ -192,10 +200,20 @@ namespace SampleCallerIDNew
                 //}
                 if (Res == 2)
                 {  //Caller ID
-                    GetCallerID(out DeviceIndex, out LineIndex,CallerIDNumber);
-                    ListBox1.Items.Add("دستگاه شماره" + Convert.ToString(DeviceIndex) + "- خط شماره " + Convert.ToString(LineIndex) + "- شماره تماس گیرنده " + "[" + Encoding.Default.GetString(CallerIDNumber) + "]");
-                    pictureBox1.Image = imageList1.Images[7];
-                    pictureBox2.Image = imageList1.Images[3];
+                    try
+                    {
+                        GetCallerID(out DeviceIndex, out LineIndex, CallerIDNumber);
+                        ListBox1.Items.Add("دستگاه شماره" + Convert.ToString(DeviceIndex) + "- خط شماره " + Convert.ToString(LineIndex) + "- شماره تماس گیرنده " + "[" + Encoding.Default.GetString(CallerIDNumber) + "]");
+                        pictureBox1.Image = imageList1.Images[7];
+                        pictureBox2.Image = imageList1.Images[3];
+
+                        searchByNumber(Encoding.ASCII.GetString(CallerIDNumber).TrimEnd('\0'));
+                    }
+                    catch
+                    {
+                        searchByNumber("09122333");
+
+                    }
                 }
                 //if (Res == 3)
                 //{  //HockOn
@@ -536,6 +554,8 @@ namespace SampleCallerIDNew
         private void Form4_Load(object sender, EventArgs e)
         {
             timer1.Enabled = checkBox3.Checked;
+            MyConn.Open();
+
         }
 
         public class PAnsiChar
@@ -550,6 +570,40 @@ namespace SampleCallerIDNew
         private void ListBox1_DoubleClick(object sender, EventArgs e)
         {
             ListBox1.Items.Clear();
+        }
+
+        private void searchByNumber(string number)
+        {
+            try
+            {
+                Console.WriteLine("salam");
+                Query = "SELECT * FROM customers WHERE number LIKE '%" + number + "%' LIMIT 5";
+                MyCommand = new MySqlCommand(Query, MyConn);
+                
+                MyReader = MyCommand.ExecuteReader();     // Here our query will be executed and data saved into the database.
+                int count = 0;
+                while (MyReader.Read())
+                {
+                    count++;
+                    Form3 f = new Form3(MyReader.GetInt32(0), MyReader.GetString(1), MyReader.GetString(2));
+                    f.Show();
+                }
+                if (count == 0)
+                {
+                    Form3 f = new Form3(0, "", number);
+                    f.Show();
+                }
+                MyReader.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+
+        private void Form4_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            MyConn.Close();
         }
     }
 }
